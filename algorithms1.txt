@@ -1,0 +1,73 @@
+Agent-Based订单薄算法流程：
+1.初始化三个订单：
+    1).产生初始价格price0=log(100)
+    2).产生三个买入订单：
+        产生价差分布x~t(n)
+            价差x<0,买入订单price_bid=price0+x
+            价差x>=0,重新生成
+    3).产生三个卖家订单：
+        产生价差分布x~t(n)
+            价差x<0,卖出订单price_bid=price0-x
+            价差x>=0,重新生成
+    4).计算当前市场价格：
+        price_market=(price_best+price_bid)/2
+2.产生新的订单：
+    1).产生价差分布:x~t(n)
+    2).产生订单提交类型分布order_sign(+1/-1): 
+        用分形高斯随机过程产生序列，
+    3).根据当前订单薄的best_bid, best_ask计算s=best_ask-best_bid
+    4).根据以下不同情况处理：
+        订单类型(+1:买入订单)：
+            x<s:
+                计算price_bid=x+best_bid并加入买入订单簿
+            x>=s:
+                如果卖出订单的数目不少于2，订单成交
+                否则订单无效(暂不处理)
+        订单类型(-1:卖出订单)：
+            x<s:
+                计算price_ask=best_ask-x并加入卖出订单簿
+            x>=s:
+                如果买入订单的数目不少于2,则订单成交
+                否则订单无效
+        5).计算当前市场价格price_market=best_bid+best_ask
+3.订单取消：
+    1).计算订单的不均衡度：
+        imb_bid=n_bid/(n_ask+n_bid)
+        imb_ask=n_ask/(n_ask+n_bid)
+    2).计算最佳叫价的移动情况：
+        分别计算以下不同情况下限价订单同最佳报价之间的相对差价：
+            卖出订单：
+                0时刻的差价：delta_i(0)_bid=pi-bid_best(该订单放置时候的最佳报价)
+                t时刻的差价：delta_i(t)_bid=pi-bid_best(当前t时刻的最佳报价)
+            买入订单：
+                0时刻的差价：delta_i(0)_ask=ask_best(该订单放置时候的最佳报价)-pi
+                t时刻的差价：delta_i(t)_ask=ask_best(当前t时刻的最佳报价)-pi
+        计算叫价移动方向：
+            卖出订单：y_ask=delta_i(t)_bid/delta_i(0)_bid
+            买入订单：y_bid=delta_i(t)_ask/delta_i(0)_ask
+    3).计算总订单量：
+        n_tot=n_ask+b_bid
+    4).计算每一个订单取消的概率(A,B是给定的数)
+        卖出订单：
+            p_ask=A*(1-exp(-y_ask))(imb_ask+B)/n_tot
+            p_ask<rand(0,1):订单取消
+            p_ask>=rand(0,1):订单不取消
+        买入订单：
+            p_bid=A*(1-exp(-y_bid))(imb_bid+B)/n_tot
+            p_bid<rand(0,1):订单取消
+            p_bid>=rand(0,1):订单不取消
+4.计算当前的市场价格
+    更新当前最新的best_ask和best_bid：
+        best_ask=min(price_ask in order book)
+        best_bid=max(price_bid in order book)
+    计算当前市场价格：
+        market_price=(best_ask+best_bid)/2
+5.重复执行2,3,4直到达到指定次数T=10000
+
+改进方向：
+    几个参数的确定需要由真实市场数据进行估计：
+        t分布，t分布的自由度
+        订单取消时候的概率计算相关的参数A,B值
+    增加交易者的反馈机制：
+        神经网络
+        贝叶斯网络
